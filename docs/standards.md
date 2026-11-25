@@ -332,12 +332,15 @@ npm run build
 
 ## 9. CI
 
-GitHub Actions 在 `main` 的 push 和 PR 上自动运行：
+GitHub Actions（`.github/workflows/ci.yml`）在 `main` 的 push 和 PR 上自动运行：
 
 1. `npm ci`
 2. `npm run lint`
 3. `npm test`
 4. `npm run build`
+5. 启动冒烟：`npm start` 后请求 `GET /api/setup/status`，期望返回 `"installed":false`
+
+同一 ref 的旧运行会被并发组取消，单 job 上限 15 分钟；Node 版本读 `.nvmrc`，第三方 action 固定到完整 commit SHA。
 
 CI workflow 遵循最小权限原则：
 
@@ -346,7 +349,7 @@ permissions:
   contents: read
 ```
 
-> **CodeQL 来源**：代码扫描由 GitHub 仓库设置侧的**默认代码扫描（default setup）**提供，不在 `.github/workflows/ci.yml` 内，仓库中也没有 CodeQL workflow 文件。发布检查清单与 PR 模板里的「CodeQL 通过」指该扫描在 PR 上的结果。
+> **CodeQL 来源**：代码扫描由 GitHub 仓库设置侧的**默认代码扫描（default setup）**提供，不在 `.github/workflows/ci.yml` 内，仓库中也没有 CodeQL workflow 文件；能否合并由仓库规则集「Code scanning merge protection」（只覆盖 `main`）判定。发布检查清单与 `.github/pull_request_template.md` 里的「CodeQL 通过」指该扫描在 PR 上的结果。
 
 ## 10. 变更解耦原则
 
