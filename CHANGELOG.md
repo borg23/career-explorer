@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.1.0] - 2026-11-25
+
+### Fixed
+
+- 统计分组键改用班级 id：同名班不再被合并成一条序列，班级改名不再丢失历史（#374）
+- 演示角色切换不再把「会话已失效」误报为「仅演示会话可切换角色」（#368）
+- 智能分组指标口径在批次头无法回放时明确标注「按策略默认源与权重」，不再声称「原样回放批次 #N」（#365）
+- 关于页文案与学生端提交流程对齐（#203）
+- Windows 全新 `npm install` 不再触发 better-sqlite3 源码编译，缺 Python 也能安装成功（#415）
+
+### Changed
+
+- 角色中文标签收口为单一来源，删除三份 `ROLE_LABELS` 副本（#329）
+- CI：新增并发取消与 15 分钟超时，Node 版本改读 `.nvmrc`，action 固定到完整 commit SHA，并在 build 后新增启动冒烟 `GET /api/setup/status`（#431）
+- 分支保护：`dev` / `main` 的必需检查收敛为仅 `check`；CodeQL 改由 code scanning 合并保护规则集把关，Dependabot PR 不再因缺少检查被阻塞
+- 文档：课堂分组角色目标与权重相互独立（#364）、AGENTS 权限摘要补 demo-admin 收敛（#341）、Issue 标题改为结果导向（#413/#440）、发版回流改为 PR 流程并说明安全更新落 `main`（#424/#425）、演示数据两条可复现路径（#339）
+- 依赖升级：next 16.4.2 → 16.4.6、eslint-config-next 16.3.6 → 16.4.6、jose 6.2.13 → 6.2.17、lucide-react 1.48.0 → 1.73.0、@aws-sdk/client-s3 3.1142.0 → 3.1169.0、@aws-sdk/s3-request-presigner 3.1137.0 → 3.1157.0、better-sqlite3 13.0.3 → 13.2.0、vitest 5.0.5 → 5.1.0、tailwindcss 4.3.3 → 4.3.5、@types/node 26.6.3 → 26.6.5、lint-staged 17.5.0 → 17.6.0
+
+### Security
+
+- next 16.4.5 / 16.4.6：修复 `'use cache'` 跨租户信息泄露、嵌套缓存跨 root param 泄露、共享回退壳缓存投毒、SVG 校验绕过、Edge 路由 HttpOnly cookie 泄露等多条公告
+- typescript-eslint 8.63.0 → 8.73.0，将 `minimatch` 升到 11.0.9，修复 GHSA-w5hq-g745-h8pq（glob 放大 DoS）
+
+### Notes
+
+- 本版本无数据库结构变更，备份仍为 version 9，部署为重启型
+
 ## [3.0.1] - 2026-10-30
 
 ### Changed
