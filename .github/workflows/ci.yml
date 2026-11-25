@@ -5,11 +5,9 @@ permissions:
 
 on:
   push:
-    # dev 仍在；迁移完成后删除
-    branches: [main, dev]
+    branches: [main]
   pull_request:
-    # dev 仍在；迁移完成后删除
-    branches: [main, dev]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
