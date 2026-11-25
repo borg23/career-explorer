@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- 分支模型迁移到 GitHub Flow：撤销 `dev`，所有 PR 直接指向 `main`（#428 / #429）
+- 发布改为 tag 驱动：bump PR 合并后在 `main` 的 merge commit 上打签名 tag，默认不再创建 release 分支（#428）
+- 生产部署改为按 tag 检出（`git checkout --detach vX.Y.Z`），不再跟随 `main` HEAD（#428）
+- CI 触发分支收敛为仅 `main`（#449）；Dependabot 移除 `target-branch`，版本更新 PR 直接进 `main`
+- 仓库设置：删除 `dev` 分支保护，Code scanning 合并保护规则集范围收窄到 `main`，开启合并后自动删除源分支
+- 文档与仓库实况对齐：分支模型、发布流程、Issue 关闭方式、CI 步骤、当前里程碑（#428）
+
+### Removed
+
+- 删除仓库外的发版手册站点（仍描述 `dev` / release 分支 / 回流的旧流程）
+
 ## [3.1.0] - 2026-11-25
 
 ### Fixed

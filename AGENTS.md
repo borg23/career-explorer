@@ -13,7 +13,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 1. Project Overview
 
-- 项目名称：Career Explorer（学生职业探索工具），v2.0.0 已于 2026-09-03 发布
+- 项目名称：Career Explorer（学生职业探索工具），v3.1.0 已于 2026-11-25 发布
 - 三角色统一用户体系：admin / teacher / student，单一 `users` 表 + 班级邀请码激活
 - 技术栈：Next.js 16 App Router（**不是 15，API 有破坏性变更**）+ React 19 + TypeScript strict + Tailwind CSS v4
 - 数据库：MySQL (mysql2) / SQLite (better-sqlite3) 双适配器，同一 `DbAdapter` 接口
@@ -112,7 +112,7 @@ find src/app -name page.tsx && find src/app/api -name route.ts
 - 发布流程：从 `main` 切 `chore/release-vX.Y.Z` → `npm version X.Y.Z --no-git-tag-version` → 更新 `CHANGELOG.md` → 签名提交 → PR 到 `main`（merge commit）→ 在 merge commit 上打签名 tag → GitHub Release；功能集完成即发布，禁止积压
 - Hotfix：从 `main` 拉 `hotfix/xxx` → PR 到 `main` → 在 merge commit 上打补丁 tag → GitHub Release
 - 生产部署按 tag 进行（`git checkout --detach vX.Y.Z`），不直接跟随 `main` HEAD
-- Pre-commit：husky + lint-staged 自动 `eslint --fix`；CI 为 GitHub Actions（lint + test + build），CodeQL 走 GitHub 默认代码扫描
+- Pre-commit：husky + lint-staged 自动 `eslint --fix`；CI 为 GitHub Actions（lint + test + build + 启动冒烟），CodeQL 走 GitHub 默认代码扫描
 - **GitHub Issue 管理**：编写规范见 `docs/issue-standard.md`；PR 用 `Closes #xx` 关联，合并到 `main` 后自动关闭
 
 ## 7. Key Design Patterns
