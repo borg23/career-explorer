@@ -290,7 +290,7 @@ Let's Encrypt 证书有效期 90 天，Certbot 会自动通过 cron 续期。
 
 演示环境让授权访客在**独立演示库**上体验 admin / teacher / student 三种身份，生产库与生产上传目录不受影响。默认关闭。
 
-生成演示数据有两条可复现路径：**路径 A** 由管理端在线触发播种，用于首次生成与重置；**路径 B** 复制一份已播种的样例库，用于离线预置与快速复制。两者生成的数据内容一致，按 §4.4 的分工选择即可。接口门禁、审计与隔离不变量见 `docs/architecture.md`（`/api/manage/demo/*` 路由表与「演示环境 Tab（#258）」），本文只写可复现步骤。
+生成演示数据有两条可复现路径：**路径 A** 由管理端在线触发播种，用于首次生成与重置；**路径 B** 复制一份已播种的样例库，用于离线预置与快速复制。两者的数据结构与规模口径一致（路径 A 每次重置都是新随机数据，路径 B 与源实例逐字节相同），按 §4.4 的分工选择即可。接口门禁、审计与隔离不变量见 `docs/architecture.md`（`/api/manage/demo/*` 路由表与「演示环境 Tab（#258）」），本文只写可复现步骤。
 
 #### 4.1 启用
 
@@ -341,8 +341,10 @@ curl https://your-domain.com/api/manage/demo/status -b 'auth_token=<生产管理
 | `students` | `20` | 名册学生（不含访客账户） |
 | `teachers` | `1` | 名册教师（不含访客账户） |
 | `submittedProfiles` | `16` | 20 × 80% 后四舍五入的精确值 |
-| `demoFiles` | 约 `24–26` | 约 13 名提交者的头像各占「原图 + 缩略图」两个对象；缩略图生成失败时略少 |
+| `demoFiles` | 约 `26`（常见 `20–32`） | 头像人数是随机的：16 名提交者各以 80% 概率生成头像（期望 12.8、最常见 13），每个头像占「原图 + 缩略图」两个对象；缩略图生成失败时再少 1 个 |
 | `visitorAccounts` | `0` | 播种不发放访客账户；每发放一个账户 +1（一个账户的三身份共用同一序号） |
+
+`classes` / `students` / `teachers` / `submittedProfiles` 在默认参数下是定值；`demoFiles` 与本节步骤 3 的 `images` 随每次重置的新随机种子浮动（重置用 `Math.random()` 播种），落在上述常见区间内即属正常，不代表播种失败。
 
 5. 按 §4.5 发放访客账户，然后把 `/login?demo=1` 与三身份编号、共用密码交付给访客（登录细节见 §4.6）。
 
@@ -350,7 +352,7 @@ curl https://your-domain.com/api/manage/demo/status -b 'auth_token=<生产管理
 
 **适用**：已有一个按路径 A 播种好的实例，需要在另一台机器或另一个目录得到**同一套**演示数据（如培训、离线演示、演练环境），不想重新随机播种。
 
-1. **在源实例上停止写入**：停掉进程（`pm2 stop career-app`），确保没有演示会话正在写入。演示库是 SQLite（WAL 模式），若文件旁存在 `data/career-demo.db-wal` / `-shm`，必须与 `.db` 一起复制；只拷 `.db` 会丢失尚未 checkpoint 的已提交事务。装了 `sqlite3` 时也可在不停进程的情况下取一致快照：
+1. **在源实例上停止写入**：停掉进程（`pm2 stop career-app`），确保没有演示会话正在写入。演示库是 SQLite（WAL 模式），若文件旁存在 `data/career-demo.db-wal`，**必须**与 `.db` 一起复制；只拷 `.db` 会丢失尚未 checkpoint 的已提交事务。同名的 `-shm` 只是临时的共享内存索引，SQLite 打开时按 `-wal` 重建，带上无害、漏了也不影响一致性。装了 `sqlite3` 时也可在不停进程的情况下取一致快照：
 
 ```bash
 # 源实例，任选其一
@@ -362,13 +364,13 @@ sqlite3 data/career-demo.db ".backup 'demo-snapshot.db'"
 
 2. **取需要复制的文件集合**：
 
-- 演示库文件：`DEMO_DB_PATH` 指向的实际文件（默认 `data/career-demo.db`；存在时连同 `-wal` / `-shm`）
+- 演示库文件：`DEMO_DB_PATH` 指向的实际文件（默认 `data/career-demo.db`；存在时**必须**连同 `-wal`，`-shm` 可带可不带）
 - 演示上传目录：`<UPLOADS_DIR>/demo/` 整个目录（默认 `uploads/demo`，含头像原图与 `*_thumb.jpg` 缩略图）
 
 ```bash
 cd /var/www/career-app
-tar -czf demo-snapshot.tgz data/career-demo.db uploads/demo
-# 若存在 data/career-demo.db-wal / -shm，一并加入 tar
+# db* 通配符自动带上 -wal / -shm（不存在时只匹配 .db）；自定义过 DEMO_DB_PATH 就替换成实际路径
+tar -czf demo-snapshot.tgz data/career-demo.db* uploads/demo
 ```
 
 3. **在目标实例落地**：解压到相同的相对位置（库放 `data/`，文件放在 `<UPLOADS_DIR>/demo/`），设置环境变量并重启：
@@ -421,7 +423,7 @@ DEMO_DB_PATH=./data/career-demo.db
 | `status` / `reset` 返回 403 | 调用者不是**生产**管理员；演示会话（含 demo-admin）同样无权访问 |
 | 状态一直「未初始化」 | 演示库文件不存在或 `dbPath` 指向错误；先按路径 A 生成，失败看进程日志 |
 | `demoFiles` 为 0 | `<UPLOADS_DIR>/demo` 缺失或不可写，或演示库的默认存储后端不可用；检查目录权限 |
-| 路径 B 后计数与源不一致 / 访客无法登录 | 漏拷 `-wal` / `-shm` 导致快照不完整，或复制的是旧文件；重新停止源进程后完整复制 |
+| 路径 B 后计数与源不一致 / 访客无法登录 | 漏拷 `-wal` 导致快照不完整，或复制的是旧文件；重新停止源进程后完整复制 |
 | 路径 B 后头像 404 | 只拷了数据库，未拷 `uploads/demo/`；或目标 `UPLOADS_DIR` 与文件实际位置不一致 |
 | 普通 `/login` 登录演示账户失败 | 演示账户只接受 `/login?demo=1`，普通入口走生产登录 |
 
