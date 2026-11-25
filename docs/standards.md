@@ -15,11 +15,11 @@
 
 | 分支 | 用途 | 来源 | 目标 |
 |---|---|---|---|
-| `main` | 稳定发布分支，只存放已发布版本 | release / hotfix | - |
+| `main` | 稳定发布分支，只存放已发布版本 | release / hotfix / dependabot（安全更新） | - |
 | `dev` | 日常开发集成分支，所有功能 PR 的默认目标 | `main` / 功能分支 | `release/vX.Y.Z` |
 | `release/vX.Y.Z` | 版本发布线，只做发版准备和发布修复 | `dev` | `main` |
-| `hotfix/xxx` | 生产紧急修复 | `main` | `main`，随后回流 `dev` |
-| `feat/`、`fix/`、`refactor/` | 功能、修复、重构分支 | `dev` | `dev` |
+| `hotfix/xxx` | 生产紧急修复 | `main` | `main`，随后通过 PR 回流 `dev` |
+| `feat/`、`fix/`、`refactor/`、`docs/` | 功能、修复、重构、文档分支 | `dev` | `dev` |
 
 ### 分支命名
 
@@ -28,12 +28,13 @@
 | `feat/` | 新功能 | `feat/admin-dashboard` |
 | `fix/` | Bug 修复 | `fix/issue-15-path-traversal` |
 | `refactor/` | 重构 | `refactor/admin-split` |
+| `docs/` | 文档与规范变更 | `docs/413-issue-title-guidelines` |
 | `release/` | 版本发布线 | `release/v2.0.0` |
 | `hotfix/` | 生产紧急修复 | `hotfix/v2.0.1-login-error` |
 
 ### 分支规则
 
-- 功能分支必须从 `dev` 切出，PR 回 `dev`
+- 功能 / 修复 / 重构 / 文档分支必须从 `dev` 切出，PR 回 `dev`
 - `main` 只接受 `release/vX.Y.Z` 或 `hotfix/xxx` 的 PR
 - `release/vX.Y.Z` 只接受发版所需变更：
   - 已进入 `dev` 且计划纳入该版本线的修复、依赖更新或其他变更
@@ -106,13 +107,23 @@ git config --global commit.gpgsign true
 - 来源分支：`release/vX.Y.Z`
 - 合并方式：**Create a merge commit**
 - 必须保留 release commit 和 merge commit
+- 例外：Dependabot 安全更新 PR 也会直接落在 `main`（安全更新无法指定目标分支），这类变更随回流进入 `dev`
 
 ### Hotfix PR
 
 - 目标分支：`main`
 - 来源分支：`hotfix/xxx`
 - 合并方式：**Create a merge commit**
-- 合并后必须回流 `dev`
+- 合并后必须通过回流 PR 回到 `dev`
+
+### 回流 PR
+
+- 目标分支：`dev`
+- 来源分支：`main`
+- 标题：`chore: backflow vX.Y.Z into dev`
+- 合并方式：**Create a merge commit**
+- `main` 已全部包含于 `dev` 时无需回流
+- 出现冲突时从 `main` 切 `chore/backflow-vX.Y.Z`，在临时分支解冲突后再开 PR
 
 ### PR 标题
 
@@ -159,7 +170,7 @@ git config --global commit.gpgsign true
 
 ## 5. Issue 管理
 
-- Issue 标题保留可选的优先级前缀，例如 `[P1-A] 管理后台操作审计日志`
+- Issue 标题使用描述性问题或结果描述，不写优先级、领域或类型前缀；具体规则见 `docs/issue-standard.md` §1
 - 类型、优先级和业务领域通过 `type:*`、`priority:*`、`area:*` Label 表达
 - Issue 编写、脱敏、Milestone 和验收标准遵循 `docs/issue-standard.md`
 - PR 合并到 `dev` 后手动关闭 Issue
@@ -207,9 +218,13 @@ X.Y.Z-rc.1
 6. 最终打出正式 tag：
    - `vX.Y.Z`
 7. 每个 tag 都通过 PR 合并到 `main`
-8. 合并后立即把 `main` 回流到 `dev`：
-   - `dev` 未领先时，fast-forward 到 `main`
-   - `dev` 已领先时，创建 merge commit
+8. 正式版合并后立即通过 `main → dev` 的 PR 把 `main` 回流到 `dev`（标题 `chore: backflow vX.Y.Z into dev`），使用 merge commit：
+   - 分支保护禁止直推 `dev`，也不要依赖管理员绕过
+   - `main` 已全部包含于 `dev` 时没有差异，跳过回流
+   - 出现冲突时从 `main` 切 `chore/backflow-vX.Y.Z`，在临时分支解冲突后再开 PR
+   - beta / rc 合入 `main` 后不单独回流，随正式版一次回流
+
+补丁版同样使用 `release/vX.Y.Z`。release 分支是发版内容的冻结快照：PR 审查期间 `dev` 继续前进，也不会混入正式版；它不承诺存在 QA 冻结期。
 
 ### 6.3 发版步骤
 
@@ -263,16 +278,18 @@ gh pr create --base main --head release/vX.Y.Z \
 - 去掉 `--prerelease`
 - tag 使用 `vX.Y.Z`
 - commit message 使用 `chore: release vX.Y.Z`
-- 合并后执行：
+- 合并后通过 PR 回流：
 
 ```bash
-git switch dev
-git pull --ff-only
-git merge --no-edit main
-git push
+# 开回流 PR；main 已全部包含于 dev 时跳过
+gh pr create --base dev --head main \
+  --title "chore: backflow vX.Y.Z into dev"
+
+# 使用 merge commit 合并
+gh pr merge <pr-number> --merge
 ```
 
-说明：`dev` 可以 fast-forward 时会直接前进到 `main`；已分叉时会生成 merge commit。
+回流不可直推 `dev`。出现冲突时从 `main` 切 `chore/backflow-vX.Y.Z`，在临时分支解冲突后再开 PR。
 
 ### 6.4 Hotfix 流程
 
@@ -301,11 +318,10 @@ git tag -v vX.Y.W
 git push -u origin hotfix/vX.Y.W-short-description
 git push origin vX.Y.W
 
-# 6. 合并后回流 dev
-git switch dev
-git pull --ff-only
-git merge --no-edit main
-git push
+# 6. 合并后通过 PR 回流 dev（不可直推）
+gh pr create --base dev --head main \
+  --title "chore: backflow vX.Y.W into dev"
+gh pr merge <pr-number> --merge
 
 # 7. 如 release/vX.Y.Z 仍在维护且修复属于该版本线，同步到该分支
 ```
@@ -324,7 +340,7 @@ git push
 - [ ] GitHub Release 已创建
 - [ ] 预发布版本已勾选 pre-release
 - [ ] PR 使用 merge commit 合并
-- [ ] 合并后 `main` 已回流 `dev`
+- [ ] 合并后 `main` 已通过 PR 回流 `dev`（不可直推）
 
 ## 7. GitHub Release 规范
 

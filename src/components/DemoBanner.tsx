@@ -5,11 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
-import {
-  ROLE_LABELS,
-  demoSwitchTargets,
-  isDemoSession,
-} from "@/lib/demo-view";
+import { demoSwitchTargets, isDemoSession } from "@/lib/demo-view";
+import { ROLE_LABELS, roleLabel } from "@/lib/role-labels";
 import { roleHome } from "@/lib/role-home";
 import type { Role } from "@/lib/token";
 
@@ -28,7 +25,7 @@ export default function DemoBanner() {
   if ((checking && !session) || !session || !isDemoSession(session)) return null;
 
   const currentRole = session.role;
-  const currentLabel = ROLE_LABELS[currentRole as Role] ?? currentRole;
+  const currentLabel = roleLabel(currentRole) ?? currentRole;
 
   const switchTo = async (role: Role) => {
     if (switching) return;
@@ -42,6 +39,8 @@ export default function DemoBanner() {
       const data = (await res.json().catch(() => ({}))) as { error?: unknown };
       if (!res.ok) {
         toast.error(typeof data.error === "string" ? data.error : "切换失败");
+        // 会话已失效：离开当前面板让登录页接管，不停在「看起来还登录着」的界面
+        if (res.status === 401) router.replace("/login");
         return;
       }
       toast.success(`已切换到${ROLE_LABELS[role]}视角`);
